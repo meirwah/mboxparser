@@ -1,24 +1,32 @@
 package mboxparser
 
 import (
-	"github.com/blabber/mbox"
+	bmbox "github.com/blabber/mbox"
 	"io"
+	"net/mail"
 	"os"
 )
 
 func Read(r io.Reader) (*Mbox, error) {
 	var messages []*Message
 
-	msgs := mbox.NewScanner(r)
-	buf := make([]byte, 0, 64*1024)
-	msgs.Buffer(buf, 1024*1024*100)
-	for msgs.Next() {
-		messages = append(messages, Decode(msgs.Message()))
+	msgs := bmbox.NewReader(r)
+	r, err := msgs.NextMessage()
+	if err != nil {
+		return nil, err
+	}
+	for err != io.EOF && r != nil {
+		msg, err := mail.ReadMessage(r)
+		if err != nil {
+			return nil, err
+		}
+		messages = append(messages, Decode(msg))
+		r, err = msgs.NextMessage()
 	}
 
 	return &Mbox{
 		Messages: messages,
-	}, msgs.Err()
+	}, nil
 }
 
 func ReadFile(filename string) (*Mbox, error) {
